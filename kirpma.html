@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Göz Kapağı · Negatif</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;1,6..96,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* İki ekran: içeride izleyicinin aynası, koridorda yalnızca göz kırptığı anlardan oluşan portre. */
+:root {
+  --room: #000000; --light: #e8ecef; --dim: #868e95; --faint: #3a3f44; --line: #1c1f22;
+  --font-display: "Bodoni Moda", "Didot", "Bodoni 72", "Times New Roman", serif;
+  --font-ui: "IBM Plex Mono", ui-monospace, Menlo, "Roboto Mono", monospace;
+  --safe-t: env(safe-area-inset-top, 0px); --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px); --safe-l: env(safe-area-inset-left, 0px);
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--room); color: var(--light); overflow: hidden; overscroll-behavior: none; -webkit-text-size-adjust: 100%; }
+body { font-family: var(--font-ui); font-size: 12px; }
+.ui-btn { font: inherit; color: var(--light); background: rgba(0,0,0,0.6); border: 1px solid var(--faint); padding: 6px 10px; cursor: pointer; border-radius: 0; text-decoration: none; display: inline-flex; align-items: center; }
+.ui-btn:hover { border-color: var(--dim); }
+.ui-btn:disabled { color: var(--dim); cursor: default; }
+button:focus-visible, a:focus-visible { outline: 1px solid var(--light); outline-offset: 2px; }
+.label { color: var(--dim); letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+
+#app {
+  position: fixed; inset: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line);
+  padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);
+}
+#app[data-view="iceri"] { grid-template-columns: 1fr; } #app[data-view="iceri"] #corridor { display: none; }
+#app[data-view="koridor"] { grid-template-columns: 1fr; } #app[data-view="koridor"] #inside { display: none; }
+.pane { position: relative; background: var(--room); overflow: hidden; min-height: 0; }
+.pane > .label { position: absolute; top: 14px; left: 16px; z-index: 2; }
+#live { position: absolute; inset: 0; width: 100%; height: 100%; filter: grayscale(1) contrast(1.1); opacity: 0.55; }
+#corridor { display: grid; grid-template-rows: auto 1fr auto auto; gap: 12px; padding: 44px 16px 16px; }
+#corridor > .label { position: static; }
+.portrait-wrap { position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#portrait { height: 100%; max-height: 100%; max-width: 100%; aspect-ratio: 1 / 1; filter: grayscale(1) contrast(1.25); background: #050607; }
+#empty { position: absolute; color: var(--dim); text-align: center; line-height: 1.6; max-width: 32ch; font-size: 12px; }
+#stats { color: var(--dim); font-variant-numeric: tabular-nums; line-height: 1.6; }
+#stats b { color: var(--light); font-weight: 500; }
+#strip { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; min-height: 64px; }
+#strip figure { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; }
+#strip canvas { width: 60px; height: 60px; filter: grayscale(1) contrast(1.25); background: #050607; display: block; }
+#strip figcaption { color: var(--dim); font-size: 10px; }
+
+#intro {
+  position: fixed; inset: 0; z-index: 8; background: var(--room); display: flex; flex-direction: column; justify-content: center;
+  gap: 18px; padding: calc(24px + var(--safe-t)) calc(24px + var(--safe-r)) calc(24px + var(--safe-b)) calc(24px + var(--safe-l));
+}
+#intro > * { max-width: 640px; width: 100%; margin: 0 auto; }
+#intro h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(44px, 10vw, 84px); line-height: 1; }
+#intro p { font-size: 14px; line-height: 1.6; color: #c6ccd1; }
+#intro .note { font-size: 12px; color: var(--dim); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+#corner { position: fixed; z-index: 5; right: calc(12px + var(--safe-r)); top: calc(8px + var(--safe-t)); display: flex; gap: 8px; }
+#corner .ui-btn { color: var(--dim); }
+@media (pointer: coarse) { .ui-btn { min-height: 44px; padding: 10px 14px; font-size: 13px; } }
+@media (max-width: 700px), (orientation: portrait) {
+  #app { grid-template-columns: 1fr; grid-template-rows: 42% 1fr; }
+  #app[data-view] { grid-template-rows: 1fr; }
+  #app[data-view="ikisi"] { grid-template-rows: 42% 1fr; }
+  #corridor { padding: 40px 12px calc(68px + var(--safe-b)); gap: 8px; }
+  #corner { top: auto; bottom: calc(12px + var(--safe-b)); }
+}
+</style>
+</head>
+<body>
+<main id="app" data-view="ikisi" hidden>
+  <section class="pane" id="inside">
+    <span class="label">İçeride · senin gördüğün</span>
+    <canvas id="live" aria-label="Kameradaki canlı ayna görüntüsü"></canvas>
+  </section>
+  <section class="pane" id="corridor">
+    <span class="label">Koridor · başkalarının gördüğü</span>
+    <div class="portrait-wrap">
+      <canvas id="portrait" width="640" height="640" aria-label="Göz kırpma anında yakalanan son portre"></canvas>
+      <p id="empty">Henüz bir portre yok. Portre yalnızca gözlerin kapalıyken oluşur.</p>
+    </div>
+    <p id="stats" role="status"></p>
+    <div id="strip" aria-label="Göz kırpma anlarının arşivi"></div>
+  </section>
+</main>
+<div id="corner" hidden>
+  <button id="view-btn" class="ui-btn" type="button">Görünüm: ikisi</button>
+  <a class="ui-btn" href="index.html">Proje</a>
+</div>
+
+<section id="intro">
+  <span class="label">Negatif · Prototip 3</span>
+  <h1>Göz Kapağı</h1>
+  <p>Bu ekran yüzünü yalnızca göz kırptığın anlarda kaydeder. Koridordakiler seni yalnızca o anlarda, bakmadığın anlarda görür. Sen bu portreyi hiçbir zaman göremezsin: o, ancak gözlerin kapalıyken var olur.</p>
+  <p>Uzun süre gözünü kırpmadan bakarsan koridordaki portren solar ve kaybolur. Göz kapağı ilk perdedir; göz kırpmak, bedenin kendiliğinden yaptığı en küçük geri çekilmedir.</p>
+  <div class="row">
+    <button id="start-btn" class="ui-btn" type="button">Kamerayı aç</button>
+    <a class="ui-btn" href="index.html">Projeye dön</a>
+  </div>
+  <p class="note" id="intro-note">Görüntü cihazından çıkmaz; hiçbir şey kaydedilmez. Kamera yalnızca https adresinde (GitHub Pages) çalışır. Sergide iki görünüm ayrı ekranlara verilir.</p>
+</section>
+
+<script type="module">
+const clamp = (v, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
+const live = document.getElementById('live'), lctx = live.getContext('2d', { alpha: false });
+const portrait = document.getElementById('portrait'), pctx = portrait.getContext('2d');
+const strip = document.getElementById('strip'), stats = document.getElementById('stats'), empty = document.getElementById('empty');
+const app = document.getElementById('app');
+const OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+
+const video = document.createElement('video');
+video.setAttribute('playsinline', ''); video.muted = true; video.playsInline = true;
+let landmarker = null, lastVideoTime = -1;
+
+// ---------- Başlat ----------
+async function start() {
+  const btn = document.getElementById('start-btn'), note = document.getElementById('intro-note');
+  if (!navigator.mediaDevices?.getUserMedia) { note.textContent = 'Bu tarayıcı kameraya izin vermiyor. Sayfayı https adresinden Safari ya da Chrome ile aç.'; return; }
+  btn.disabled = true; btn.textContent = 'Kamera açılıyor…';
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } });
+    video.srcObject = stream; await video.play();
+    btn.textContent = 'Yüz modeli yükleniyor…';
+    const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
+    const files = await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+    const opts = d => ({ baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', delegate: d }, runningMode: 'VIDEO', numFaces: 1, outputFaceBlendshapes: true });
+    try { landmarker = await vision.FaceLandmarker.createFromOptions(files, opts('GPU')); }
+    catch (_) { landmarker = await vision.FaceLandmarker.createFromOptions(files, opts('CPU')); }
+    document.getElementById('intro').hidden = true;
+    app.hidden = false; document.getElementById('corner').hidden = false;
+    const h = location.hash.replace('#', ''); if (h === 'koridor' || h === 'iceri') setView(h);
+    resize(); t0 = performance.now() / 1000;
+    try { await navigator.wakeLock?.request('screen'); } catch (_) {}
+    requestAnimationFrame(frame);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Kamerayı aç';
+    note.textContent = 'Kamera açılamadı. İzin verdiğinden ve sayfanın https üzerinden açıldığından emin ol.';
+  }
+}
+document.getElementById('start-btn').addEventListener('click', start);
+
+// ---------- Görünüm ----------
+const views = ['ikisi', 'iceri', 'koridor'], viewNames = { ikisi: 'ikisi', iceri: 'yalnız içeri', koridor: 'yalnız koridor' };
+function setView(v) { app.dataset.view = v; document.getElementById('view-btn').textContent = 'Görünüm: ' + viewNames[v]; setTimeout(resize, 0); }
+document.getElementById('view-btn').addEventListener('click', () => setView(views[(views.indexOf(app.dataset.view) + 1) % 3]));
+
+function resize() {
+  const r = live.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2);
+  live.width = Math.max(1, Math.round(r.width * d)); live.height = Math.max(1, Math.round(r.height * d));
+}
+addEventListener('resize', resize); addEventListener('orientationchange', () => setTimeout(resize, 250));
+
+// ---------- Göz kırpma ----------
+const S = { blinking: false, best: 0, count: 0, lastBlink: 0 };
+let t0 = 0;
+const grab = document.createElement('canvas'); grab.width = grab.height = 640; const gctx = grab.getContext('2d');
+const composite = document.createElement('canvas'); composite.width = composite.height = 640; const cctx = composite.getContext('2d');
+
+function cropFace(f) {
+  // Yüzün etrafında kare kırpma, aynalı (izleyicinin kendini gördüğü yön)
+  const vw = video.videoWidth, vh = video.videoHeight;
+  let x0 = 1, y0 = 1, x1 = 0, y1 = 0;
+  OVAL.forEach(i => { x0 = Math.min(x0, f[i].x); y0 = Math.min(y0, f[i].y); x1 = Math.max(x1, f[i].x); y1 = Math.max(y1, f[i].y); });
+  const cx = (x0 + x1) / 2 * vw, cy = (y0 + y1) / 2 * vh;
+  const side = Math.max((x1 - x0) * vw, (y1 - y0) * vh) * 1.35;
+  gctx.save(); gctx.translate(640, 0); gctx.scale(-1, 1);
+  gctx.fillStyle = '#000'; gctx.fillRect(0, 0, 640, 640);
+  gctx.drawImage(video, cx - side / 2, cy - side / 2, side, side, 0, 0, 640, 640);
+  gctx.restore();
+}
+
+function commitPortrait(t) {
+  S.count++; S.lastBlink = t;
+  // Son portre
+  pctx.globalAlpha = 1; pctx.drawImage(grab, 0, 0);
+  // Arşiv şeridi: en yeni başta, en fazla 24
+  const fig = document.createElement('figure');
+  const c = document.createElement('canvas'); c.width = c.height = 120; c.getContext('2d').drawImage(grab, 0, 0, 120, 120);
+  const cap = document.createElement('figcaption'); cap.textContent = fmtTime(t - t0);
+  fig.append(c, cap);
+  fig.className = 'item';
+  compFig.after(fig); // bileşik portre başta, ardından en yenisi
+  const items = strip.querySelectorAll('figure.item'); if (items.length > 24) items[items.length - 1].remove();
+  // Bileşik portre: bütün kapalı göz anlarının ortalaması
+  cctx.globalAlpha = 1 / S.count; cctx.drawImage(grab, 0, 0); cctx.globalAlpha = 1;
+  compFigCanvas.getContext('2d').drawImage(composite, 0, 0, 120, 120);
+  compFig.hidden = false;
+  empty.hidden = true;
+}
+const compFig = document.createElement('figure'); compFig.hidden = true;
+const compFigCanvas = document.createElement('canvas'); compFigCanvas.width = compFigCanvas.height = 120;
+const compCap = document.createElement('figcaption'); compCap.textContent = 'bileşik';
+compFig.append(compFigCanvas, compCap); strip.appendChild(compFig);
+
+const fmtTime = s => { const m = Math.floor(s / 60), r = Math.floor(s % 60); return `${m}:${String(r).padStart(2, '0')}`; };
+
+function readFace(ms, t) {
+  if (video.currentTime === lastVideoTime) return null;
+  lastVideoTime = video.currentTime;
+  let r; try { r = landmarker.detectForVideo(video, ms); } catch (_) { return null; }
+  const f = r.faceLandmarks?.[0], bs = r.faceBlendshapes?.[0]?.categories;
+  if (!f || !bs) return { face: false };
+  const get = n => (bs.find(c => c.categoryName === n) || { score: 0 }).score;
+  const score = (get('eyeBlinkLeft') + get('eyeBlinkRight')) / 2;
+  // Histerezisli kırpma algılama; gözlerin en kapalı olduğu kare saklanır
+  if (!S.blinking && score > 0.5) { S.blinking = true; S.best = 0; }
+  if (S.blinking) {
+    if (score > S.best) { S.best = score; cropFace(f); }
+    if (score < 0.3) { S.blinking = false; commitPortrait(t); }
+  }
+  return { face: true };
+}
+
+// ---------- Döngü ----------
+let lastStats = 0, faceSeen = false;
+function frame(ms) {
+  const t = ms / 1000;
+  if (video.readyState >= 2 && video.videoWidth) {
+    const res = readFace(ms, t); if (res) faceSeen = res.face;
+    // İçeride: ayna
+    const W = live.width, H = live.height, vw = video.videoWidth, vh = video.videoHeight;
+    const s = Math.max(W / vw, H / vh), dw = vw * s, dh = vh * s;
+    lctx.save(); lctx.translate((W + dw) / 2, (H - dh) / 2); lctx.scale(-1, 1); lctx.drawImage(video, 0, 0, dw, dh); lctx.restore();
+    // Koridor: son portre, kırpılmadan geçen her saniye solar
+    if (S.count) {
+      const since = t - S.lastBlink;
+      portrait.style.opacity = Math.exp(-since / 7).toFixed(3);
+    }
+    if (t - lastStats > 0.2) {
+      lastStats = t;
+      const mins = Math.max((t - t0) / 60, 1 / 60);
+      const since = S.count ? (t - S.lastBlink) : (t - t0);
+      stats.innerHTML = !faceSeen && !S.count
+        ? 'Yüz aranıyor…'
+        : `Son kırpmadan bu yana <b>${since.toFixed(1).replace('.', ',')} sn</b> · ${S.count} kırpma · dakikada <b>${(S.count / mins).toFixed(1).replace('.', ',')}</b>`;
+    }
+  }
+  requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>
